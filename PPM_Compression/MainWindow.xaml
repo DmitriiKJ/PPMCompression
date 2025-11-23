@@ -1,0 +1,39 @@
+﻿<Window x:Class="PPM_Compression.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PPM_Compression"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <TabControl>
+        <TabItem Header="Encode">
+            <TabControl>
+                <TabItem Header="File">
+                    <StackPanel>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Text" Height="20" Width="33">
+                    <StackPanel Orientation="Vertical">
+                        <TextBox x:Name="JustTextBox" Height="100" VerticalAlignment="Top"/>
+                        <Button x:Name="EncodeTextButton" Content="Encode text" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,20,0,0" Click="EncodeTextButton_Click"/>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </TabItem>
+        <TabItem Header="Decode">
+            <TabControl>
+                <TabItem Header="File">
+                    <StackPanel>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Text" Height="20" Width="33">
+                    <StackPanel Orientation="Vertical">
+                        <TextBox x:Name="DecodedTextBox" Height="100" VerticalAlignment="Top" IsEnabled="False"/>
+                        <Button x:Name="DecodeTextButton" Content="Decode text" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,20,0,0" Click="DecodeTextButton_Click"/>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </TabItem>
+    </TabControl>
+</Window>

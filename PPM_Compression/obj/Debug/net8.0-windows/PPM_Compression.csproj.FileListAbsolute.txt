@@ -23,3 +23,4 @@ F:\CSH\Nure\PPM\PPM_Compression\PPM_Compression\obj\Debug\net8.0-windows\PPM_Com
 F:\CSH\Nure\PPM\PPM_Compression\PPM_Compression\obj\Debug\net8.0-windows\PPM_Comp.92B5985D.Up2Date
 F:\CSH\Nure\PPM\PPM_Compression\PPM_Compression\bin\Debug\net8.0-windows\protobuf-net.dll
 F:\CSH\Nure\PPM\PPM_Compression\PPM_Compression\bin\Debug\net8.0-windows\protobuf-net.Core.dll
+F:\CSH\Nure\PPM\PPM_Compression\PPM_Compression\obj\Debug\net8.0-windows\PPM_Compression.sourcelink.json

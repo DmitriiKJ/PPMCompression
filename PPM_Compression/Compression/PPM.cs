@@ -8,9 +8,9 @@ namespace PPM_Compression.Compression
 {
     internal class PPM
     {
-        private static readonly int ORDER = 3;
+        private static readonly int ORDER = 2;
 
-        public static CompressedPPM PPMCompression(List<byte> bytes)
+        public static CompressedPPM PPMCompression(List<byte> bytes, IProgress<int> progress = null)
         {
             var res = new LinkedList<byte>();
             var context = new Dictionary<string, SortedDictionary<Option, int>>();
@@ -102,6 +102,9 @@ namespace PPM_Compression.Compression
 
                 // Add byte to context
                 AddNonEscElemToContext(context, elem, contexts);
+
+                if (i % 1000 == 0)
+                    progress?.Report(i);
             }
 
             uint code = low + (high - low) / 2;
@@ -114,7 +117,7 @@ namespace PPM_Compression.Compression
             return state;
         }
 
-        public static List<byte> PPMRestore(CompressedPPM compressed)
+        public static List<byte> PPMRestore(CompressedPPM compressed, IProgress<int> progress = null)
         {
             compressed.FinalizeArr();
             var res = "";
@@ -201,6 +204,9 @@ namespace PPM_Compression.Compression
                 LoadCertainBits(ref low, ref high, ref code, compressed);
 
                 AddNonEscElemToContext(context, new Option { Value = curByte }, contexts);
+
+                if (i % 1000 == 0)
+                    progress?.Report(i);
             }
 
 

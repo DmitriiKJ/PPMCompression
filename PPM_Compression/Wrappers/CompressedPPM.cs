@@ -8,18 +8,12 @@ using ProtoBuf;
 
 namespace PPM_Compression.Collections
 {
-    [ProtoContract]
     internal class CompressedPPM
     {
-        [ProtoMember(1)]
         public List<byte> bytes;
-        [ProtoMember(2)]
         private byte currentByte;
-        [ProtoMember(3)]
         private int bitPosition;
-        [ProtoMember(4)]
         private int readPosition;
-        [ProtoMember(5)]
         public int BytesLen { get; set; }
 
         public CompressedPPM()
@@ -88,14 +82,28 @@ namespace PPM_Compression.Collections
         public static byte[] ToBinary(CompressedPPM data)
         {
             using var ms = new MemoryStream();
-            Serializer.Serialize(ms, data);
+            using var bw = new BinaryWriter(ms);
+
+            bw.Write(data.BytesLen);
+
+            bw.Write(data.bytes.ToArray());
+
             return ms.ToArray();
         }
 
         public static CompressedPPM FromBinary(byte[] raw)
         {
             using var ms = new MemoryStream(raw);
-            return Serializer.Deserialize<CompressedPPM>(ms);
+            using var br = new BinaryReader(ms);
+
+            var result = new CompressedPPM
+            {
+                BytesLen = br.ReadInt32()
+            };
+
+            result.bytes = br.ReadBytes(result.BytesLen).ToList();
+
+            return result;
         }
     }
 }

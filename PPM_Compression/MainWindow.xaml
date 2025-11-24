@@ -11,6 +11,15 @@
             <TabControl>
                 <TabItem Header="File">
                     <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="File to encode:" Margin="10"/>
+                            <TextBlock x:Name="FileNameTextBlock" Margin="10"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="SelectFileButton" Content="Select file" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,10,0,0" Click="SelectFileButton_Click"/>
+                            <Button x:Name="EncodeFileButton" Content="Encode file" Width="100" Height="30" HorizontalAlignment="Center" Margin="10,10,0,0" Click="EncodeFileButton_Click"/>
+                        </StackPanel>
+                        <ProgressBar x:Name="FileEncodingProgressBar" Height="20" Margin="10,20,10,0" Value="0" Visibility="Hidden"/>
                     </StackPanel>
                 </TabItem>
                 <TabItem Header="Text" Height="20" Width="33">
@@ -25,6 +34,15 @@
             <TabControl>
                 <TabItem Header="File">
                     <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="File to decode:" Margin="10"/>
+                            <TextBlock x:Name="EncodedFileNameTextBlock" Margin="10"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="SelectEncodeFileButton" Content="Select file" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,10,0,0" Click="SelectEncodeFileButton_Click"/>
+                            <Button x:Name="DecodeFileButton" Content="Decode file" Width="100" Height="30" HorizontalAlignment="Center" Margin="10,10,0,0" Click="DecodeFileButton_Click"/>
+                        </StackPanel>
+                        <ProgressBar x:Name="FileDecodingProgressBar" Height="20" Margin="10,20,10,0" Value="0" Visibility="Hidden"/>
                     </StackPanel>
                 </TabItem>
                 <TabItem Header="Text" Height="20" Width="33">

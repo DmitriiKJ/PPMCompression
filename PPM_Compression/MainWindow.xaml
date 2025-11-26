@@ -24,7 +24,7 @@
                 </TabItem>
                 <TabItem Header="Text" Height="20" Width="33">
                     <StackPanel Orientation="Vertical">
-                        <TextBox x:Name="JustTextBox" Height="100" VerticalAlignment="Top"/>
+                        <TextBox x:Name="JustTextBox" Height="100" VerticalAlignment="Top" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                         <Button x:Name="EncodeTextButton" Content="Encode text" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,20,0,0" Click="EncodeTextButton_Click"/>
                     </StackPanel>
                 </TabItem>
@@ -47,7 +47,7 @@
                 </TabItem>
                 <TabItem Header="Text" Height="20" Width="33">
                     <StackPanel Orientation="Vertical">
-                        <TextBox x:Name="DecodedTextBox" Height="100" VerticalAlignment="Top" IsEnabled="False"/>
+                        <TextBox x:Name="DecodedTextBox" Height="100" VerticalAlignment="Top" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                         <Button x:Name="DecodeTextButton" Content="Decode text" Width="100" Height="30" HorizontalAlignment="Center" Margin="0,20,0,0" Click="DecodeTextButton_Click"/>
                     </StackPanel>
                 </TabItem>

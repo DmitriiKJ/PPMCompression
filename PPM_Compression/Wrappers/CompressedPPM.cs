@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using ProtoBuf;
 
 namespace PPM_Compression.Collections
@@ -14,7 +15,10 @@ namespace PPM_Compression.Collections
         private byte currentByte;
         private int bitPosition;
         private int readPosition;
+
+        public int FollowBits { get; set; } = 0;
         public int BytesLen { get; set; }
+        public string FileName { get; set; } = string.Empty;
 
         public CompressedPPM()
         {
@@ -86,7 +90,11 @@ namespace PPM_Compression.Collections
 
             bw.Write(data.BytesLen);
 
+            bw.Write(data.bytes.Count);
+
             bw.Write(data.bytes.ToArray());
+
+            bw.Write(data.FileName);
 
             return ms.ToArray();
         }
@@ -101,7 +109,10 @@ namespace PPM_Compression.Collections
                 BytesLen = br.ReadInt32()
             };
 
-            result.bytes = br.ReadBytes(result.BytesLen).ToList();
+            int len = br.ReadInt32();
+            result.bytes = br.ReadBytes(len).ToList();
+
+            result.FileName = br.ReadString();
 
             return result;
         }

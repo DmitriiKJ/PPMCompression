@@ -14,6 +14,7 @@ namespace PPM_Compression
     public partial class MainWindow : Window
     {
         private byte[] FileBytes = new byte[0];
+        private string FileName = string.Empty;
 
         public MainWindow()
         {
@@ -36,7 +37,7 @@ namespace PPM_Compression
             {
                 byte[] raw = File.ReadAllBytes(dialog.FileName);
                 var compressed = CompressedPPM.FromBinary(raw);
-                var decompressed = Compression.PPM.PPMRestore(compressed);
+                var decompressed = Compression.PPM.PPMRestore(compressed, null);
                 DecodedTextBox.Text = Encoding.UTF8.GetString(decompressed.ToArray());
             }
         }
@@ -50,6 +51,7 @@ namespace PPM_Compression
             {
                 FileBytes = File.ReadAllBytes(dialog.FileName);
                 FileNameTextBlock.Text = dialog.FileName;
+                FileName = Path.GetFileName(dialog.FileName);
             }
         }
 
@@ -61,7 +63,7 @@ namespace PPM_Compression
         private async Task CompressAndSave(List<byte> data)
         {
             FileEncodingProgressBar.Minimum = 0;
-            FileEncodingProgressBar.Maximum = FileBytes.Length;
+            FileEncodingProgressBar.Maximum = data.Count;
             FileEncodingProgressBar.Visibility = Visibility.Visible;
 
             var progress = new Progress<int>(value =>
@@ -72,6 +74,8 @@ namespace PPM_Compression
             var compressed = await Task.Run(() =>
                 Compression.PPM.PPMCompression(data, progress)
             );
+
+            compressed.FileName = FileName;
 
             FileEncodingProgressBar.Visibility = Visibility.Hidden;
 
@@ -109,9 +113,13 @@ namespace PPM_Compression
 
             var dialog = new SaveFileDialog();
             dialog.Title = "Save file";
-            dialog.Filter = "mp4 file (*.mp4)|*.mp4";
-            dialog.DefaultExt = "mp4";
-            dialog.AddExtension = true;
+            var safeName = string.Concat(
+                FileName
+                .Trim()
+                .Where(ch => !Path.GetInvalidFileNameChars().Contains(ch))
+            );
+            dialog.FileName = safeName;
+            dialog.Filter = "Все файлы (*.*)|*.*";
 
             if (dialog.ShowDialog() == true)
             {

@@ -1,147 +1,117 @@
 ﻿using PPM_Compression.Collections;
-using System;
-using System.Collections;
-using System.Text;
-using System.Windows.Controls;
+using System.Windows;
 
 namespace PPM_Compression.Compression
 {
     internal class PPM
     {
         private static readonly int ORDER = 2;
+        private static readonly int ESC_IDX = 256;
 
-        public static CompressedPPM PPMCompression(List<byte> bytes, IProgress<int> progress = null)
+        public static CompressedPPM PPMCompression(List<byte> bytes, IProgress<int> progress)
         {
-            var res = new LinkedList<byte>();
-            var context = new Dictionary<string, SortedDictionary<Option, int>>();
-            var state = new CompressedPPM();
-            state.BytesLen = bytes.Count;
+            var context = new Dictionary<ContextKey, FrequencyModel>();
+            var state = new CompressedPPM { BytesLen = bytes.Count };
 
-            var esc = new Option { Value = null };
-
-            var bytesString = Encoding.UTF8.GetString(bytes.ToArray());
             uint low = 0;
             uint high = 0xFFFFFFFF;
 
-            for (int i = 0; i < bytesString.Length; i++)
+            for (int i = 0; i < bytes.Count; i++)
             {
-                var elem = new Option { Value = bytes[i] };
-                int ctx_amount = (i < ORDER ? i : ORDER) + 1;
-                string[] contexts = new string[ctx_amount];
-                contexts[0] = string.Empty;
-                for (int j = 1; j < ctx_amount; j++)
-                {
-                    contexts[j] = bytesString.Substring(i - j, j);
-                }
+                var elem = bytes[i];
+                int ctx_amount = i < ORDER ? i : ORDER;
 
-                for (int j = ctx_amount - 1; j >= -1; j--)
+                for (int j = ctx_amount; j >= -1; j--)
                 {
-                    if (j == -1 || (context.ContainsKey(contexts[j]) && context[contexts[j]].ContainsKey(elem)))
+                    if (j == -1)
                     {
                         ulong width = (ulong)high - low + 1;
 
-                        uint total;
-                        uint cumFreq;
-                        uint freq;
-                        if (j == -1)
+                        uint total = 256;
+                        uint cumFreq = bytes[i];
+
+                        high = low + (uint)(width * (cumFreq + 1) / total) - 1;
+                        low += (uint)(width * cumFreq / total);
+
+                        break;
+                    }
+
+                    var key = new ContextKey(bytes, i, j);
+
+                    if (context.TryGetValue(key, out var model))
+                    {
+                        ulong width = (ulong)high - low + 1;
+
+                        uint total = model.TotalCount;
+
+                        if (model.Counts[elem] > 0)
                         {
-                            total = 256;
-                            cumFreq = bytes[i];
-                            freq = 1;
+                            uint cumFreq = 0;
+                            for (int k = 0; k < elem; k++) cumFreq += model.Counts[k];
+
+                            uint freq = model.Counts[elem];
+
+                            high = low + (uint)(width * (cumFreq + freq) / total) - 1;
+                            low += (uint)(width * cumFreq / total);
+
+                            break;
                         }
                         else
                         {
-                            var ctx = context[contexts[j]];
-                            total = (uint)ctx.Values.Sum();
-                            cumFreq = 0;
-                            foreach (var kvp in ctx)
-                            {
-                                if (kvp.Key.Equals(elem)) break;
-                                cumFreq += (uint)kvp.Value;
-                            }
+                            uint escCount = model.Counts[ESC_IDX];
 
-                            freq = (uint)ctx[elem];
+                            high = low + (uint)(width * model.TotalCount / total) - 1;
+                            low += (uint)(width * (model.TotalCount - model.Counts[ESC_IDX]) / total);
+
+                            SaveCertainBits(ref low, ref high, state);
+                            model.Increment(ESC_IDX);
                         }
-
-                        low += (uint)(width * cumFreq / total);
-                        high = low + (uint)(width * freq / total) - 1;
-                        break;
                     }
                     else
                     {
-                        if (context.ContainsKey(contexts[j]))
-                        {
-                            var currentDict = context[contexts[j]];
-
-                            if (currentDict.ContainsKey(esc))
-                            {
-                                ulong width = (ulong)high - low + 1;
-                                uint total = (uint)currentDict.Values.Sum();
-                                uint escCount = (uint)currentDict[esc];
-
-                                high = low + (uint)(width * escCount / total) - 1;
-
-                                SaveCertainBits(ref low, ref high, state);
-                                currentDict[esc]++;
-                            }
-                            else
-                            {
-                                currentDict.Add(esc, 1);
-                            }
-                        }
-                        else
-                        {
-                            context.Add(contexts[j], new SortedDictionary<Option, int>());
-                            context[contexts[j]].Add(esc, 1);
-                        }
+                        var newModel = new FrequencyModel();
+                        context.Add(key, newModel);
                     }
                 }
 
-                // Save older bits that are certain
                 SaveCertainBits(ref low, ref high, state);
-
-                // Add byte to context
-                AddNonEscElemToContext(context, elem, contexts);
+                AddNonEscElemToContext(context, bytes, i, elem);
 
                 if (i % 1000 == 0)
                     progress?.Report(i);
             }
 
-            uint code = low + (high - low) / 2;
-            for (int i = 0; i < 32; i++)
+            state.FollowBits++;
+
+            byte final_bit = (byte)((low & 0x40000000) >> 30);
+            state.AddBits(final_bit);
+
+            while (state.FollowBits > 0)
             {
-                state.AddBits((byte)((code & 0x80000000) >> 31));
-                code <<= 1;
+                state.AddBits((byte)(final_bit ^ 1));
+                state.FollowBits--;
             }
+
+            state.FinalizeArr();
 
             return state;
         }
 
-        public static List<byte> PPMRestore(CompressedPPM compressed, IProgress<int> progress = null)
+        public static List<byte> PPMRestore(CompressedPPM compressed, IProgress<int> progress)
         {
-            compressed.FinalizeArr();
-            var res = "";
+            var res = new List<byte>(compressed.BytesLen);
             uint code = compressed.GetCode();
-            var context = new Dictionary<string, SortedDictionary<Option, int>>();
+            var context = new Dictionary<ContextKey, FrequencyModel>();
             uint low = 0;
             uint high = 0xFFFFFFFF;
 
-            var esc = new Option { Value = null };
-
             for (int i = 0; i < compressed.BytesLen; i++)
             {
-                int ctx_amount = (i < ORDER ? i : ORDER) + 1;
-                string[] contexts = new string[ctx_amount];
-                contexts[0] = string.Empty;
-
-                for (int j = 1; j < ctx_amount; j++)
-                {
-                    contexts[j] = res.Substring(i - j, j);
-                }
+                int ctx_amount = i < ORDER ? i : ORDER;
 
                 byte curByte = 0;
 
-                for (int j = ctx_amount - 1; j >= -1; j--)
+                for (int j = ctx_amount; j >= -1; j--)
                 {
                     ulong width = (ulong)high - low + 1;
                     uint r = code - low;
@@ -150,67 +120,89 @@ namespace PPM_Compression.Compression
                     {
                         uint total = 256;
 
-                        uint targetIndex = (uint)((ulong)r * total / width);
-
-                        curByte = (byte)targetIndex;
-                        low += (uint)(width * targetIndex / total);
-                        high = low + (uint)(width / total) - 1;
-                    }
-                    else if (!context.ContainsKey(contexts[j]))
-                    {
-                        context.Add(contexts[j], new SortedDictionary<Option, int>());
-                        context[contexts[j]].Add(esc, 1);
-                    }
-                    else
-                    {
-                        var ctx = context[contexts[j]];
-                        uint total = (uint)ctx.Values.Sum();
-                        uint targetCumFreq = (uint)((ulong)r * total / width);
-                        bool done = false;
-
-                        uint curSum = 0;
-                        foreach (var kvp in context[contexts[j]])
+                        for (uint k = 0; k < 256; k++)
                         {
-                            ulong freq = (ulong)kvp.Value;
-                            if (targetCumFreq < curSum + freq)
+                            ulong rangeUpper = (uint)(width * (k + 1) / total);
+
+                            if (r < rangeUpper)
                             {
-                                low += (uint)(width * curSum / total);
-                                high = low + (uint)(width * freq / total) - 1;
-                                if (kvp.Key.Value.HasValue)
-                                {
-                                    curByte = kvp.Key.Value.Value;
-                                    done = true;
-                                }
-                                else
-                                {
-                                    LoadCertainBits(ref low, ref high, ref code, compressed);
-                                    context[contexts[j]][esc]++;
-                                    done = false;
-                                }
+                                curByte = (byte)k;
+
+                                high = low + (uint)rangeUpper - 1;
+                                low += (uint)(width * k / total);
                                 break;
                             }
+                        }
+
+                        break;
+                    }
+
+                    var key = new ContextKey(res, j);
+
+                    if (context.TryGetValue(key, out var model))
+                    {
+                        uint total = model.TotalCount;
+                        bool done = false;
+                        uint curSum = 0;
+                        uint k = 0;
+
+                        foreach (var f in model.Counts)
+                        {
+                            ulong freq = f;
+
+                            if (freq > 0)
+                            {
+                                ulong rangeUpper = width * (curSum + freq) / total;
+
+                                if (r < rangeUpper)
+                                {
+                                    high = low + (uint)rangeUpper - 1;
+                                    low += (uint)(width * curSum / total);
+
+                                    if (k == ESC_IDX)
+                                    {
+                                        LoadCertainBits(ref low, ref high, ref code, compressed);
+                                        model.Increment(ESC_IDX);
+                                        done = false;
+                                    }
+                                    else
+                                    {
+                                        curByte = (byte)k;
+                                        done = true;
+                                    }
+                                    break;
+                                }
+                            }
+
                             curSum += (uint)freq;
+                            k++;
                         }
 
                         if (done)
                         {
                             break;
                         }
+                        
+                    }
+                    else
+                    {
+                        var newModel = new FrequencyModel();
+                        context.Add(key, newModel);
                     }
                 }
 
-                res += (char)curByte;
+                res.Add(curByte);
 
                 LoadCertainBits(ref low, ref high, ref code, compressed);
 
-                AddNonEscElemToContext(context, new Option { Value = curByte }, contexts);
+                AddNonEscElemToContext(context, res, res.Count - 1, curByte);
 
                 if (i % 1000 == 0)
                     progress?.Report(i);
             }
 
 
-            return Encoding.UTF8.GetBytes(res).ToList();
+            return res;
         }
 
         static private void SaveCertainBits(ref uint low, ref uint high, CompressedPPM state)
@@ -219,9 +211,23 @@ namespace PPM_Compression.Compression
             {
                 if ((low & 0x80000000) == (high & 0x80000000))
                 {
-                    state.AddBits((byte)((high & 0x80000000) >> 31));
+                    byte bit = (byte)((high & 0x80000000) >> 31);
+                    state.AddBits(bit);
+
+                    while (state.FollowBits > 0)
+                    {
+                        state.AddBits((byte)(bit ^ 1));
+                        state.FollowBits--;
+                    }
+
                     low <<= 1;
                     high = (high << 1) | 1;
+                }
+                else if ((low & 0x40000000) != 0 && (high & 0x40000000) == 0)
+                {
+                    state.FollowBits++;
+                    low = (low & 0x3FFFFFFF) << 1;
+                    high = ((high & 0x3FFFFFFF) << 1) | 0x80000001;
                 }
                 else
                 {
@@ -242,6 +248,16 @@ namespace PPM_Compression.Compression
                     code <<= 1;
                     code |= state.PopBit();
                 }
+                else if ((low & 0x40000000) != 0 && (high & 0x40000000) == 0)
+                {
+                    low = (low & 0x3FFFFFFF) << 1;
+                    high = ((high & 0x3FFFFFFF) << 1) | 0x80000001;
+
+                    uint currentCodeTop = code & 0x80000000;
+                    uint currentCodeRest = (code & 0x3FFFFFFF) << 1;
+
+                    code = currentCodeTop | currentCodeRest | state.PopBit();
+                }
                 else
                 {
                     break;
@@ -249,44 +265,89 @@ namespace PPM_Compression.Compression
             }
         }
 
-        static private void AddNonEscElemToContext(Dictionary<string, SortedDictionary<Option, int>> context, Option elem, string[] contexts)
+        private static void AddNonEscElemToContext(Dictionary<ContextKey, FrequencyModel> contextMap, List<byte> bytes, int index, int symbol)
         {
-            for (int j = 0; j < contexts.Length; j++)
+            int maxOrder = (index < ORDER ? index : ORDER);
+            for (int j = 0; j <= maxOrder; j++)
             {
-                if (!context.ContainsKey(contexts[j]))
+                var key = new ContextKey(bytes, index, j);
+                if (!contextMap.TryGetValue(key, out var model))
                 {
-                    context.Add(contexts[j], new SortedDictionary<Option, int>());
+                    model = new FrequencyModel();
+                    contextMap.Add(key, model);
                 }
-
-                if (context[contexts[j]].ContainsKey(elem))
-                    context[contexts[j]][elem]++;
-                else
-                    context[contexts[j]].Add(elem, 1);
+                model.Increment(symbol);
             }
         }
     }
 
-    class Option : IEquatable<Option>, IComparable<Option>
+    class FrequencyModel
     {
-        public byte? Value { get; set; }
+        public uint[] Counts = new uint[257];
+        public uint TotalCount = 0;
 
-        public bool Equals(Option? other)
+        public FrequencyModel()
         {
-            if (other is null) return false;
-            return Value == other.Value;
+            Counts[256] = 1;
+            TotalCount = 1;
         }
 
-        public override int GetHashCode() => Value.HasValue ? Value.Value.GetHashCode() : 0;
-
-        public int CompareTo(Option? other)
+        public void Increment(int symbol)
         {
-            if (other == null) return 1;
-            if (this.Value == other.Value) return 0;
-
-            if (!this.Value.HasValue) return -1;
-            if (!other.Value.HasValue) return 1;
-
-            return this.Value.Value.CompareTo(other.Value.Value);
+            Counts[symbol]++;
+            TotalCount++;
         }
+    }
+
+    struct ContextKey : IEquatable<ContextKey>
+    {
+        private readonly int _hash;
+        private readonly List<byte> _data;
+        private readonly int _index;
+        private readonly int _length;
+
+        public ContextKey(List<byte> data, int index, int length)
+        {
+            _data = data;
+            _index = index;
+            _length = length;
+
+            if (length == 0)
+            {
+                _hash = -1;
+                return;
+            }
+
+            int h = 0;
+            for (int i = 0; i < length; i++)
+            {
+                h = (h << 8) | data[index - length + i];
+            }
+            _hash = h;
+        }
+
+        public ContextKey(List<byte> data, int length) : this(data, data.Count, length) { }
+
+        public override int GetHashCode() => _hash;
+
+        public bool Equals(ContextKey other)
+        {
+            if (_hash != other._hash) return false;
+
+            if (_length == 0 && other._length == 0) return true;
+
+            if (_length != other._length) return false;
+
+            for (int i = 0; i < _length; i++)
+            {
+                byte b1 = _data[_index - _length + i];
+                byte b2 = other._data[other._index - other._length + i];
+                if (b1 != b2) return false;
+            }
+
+            return true;
+        }
+
+        public override bool Equals(object? obj) => obj is ContextKey other && Equals(other);
     }
 }

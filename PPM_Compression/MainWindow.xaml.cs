@@ -52,6 +52,7 @@ namespace PPM_Compression
                 FileBytes = File.ReadAllBytes(dialog.FileName);
                 FileNameTextBlock.Text = dialog.FileName;
                 FileName = Path.GetFileName(dialog.FileName);
+                EncodeFileButton.IsEnabled = true;
             }
         }
 
@@ -62,6 +63,9 @@ namespace PPM_Compression
 
         private async Task CompressAndSave(List<byte> data)
         {
+            SelectFileButton.IsEnabled = false;
+            EncodeFileButton.IsEnabled = false;
+
             FileEncodingProgressBar.Minimum = 0;
             FileEncodingProgressBar.Maximum = data.Count;
             FileEncodingProgressBar.Visibility = Visibility.Visible;
@@ -85,6 +89,9 @@ namespace PPM_Compression
             dialog.DefaultExt = "dppm";
             dialog.AddExtension = true;
 
+            SelectFileButton.IsEnabled = true;
+            EncodeFileButton.IsEnabled = true;
+
             if (dialog.ShowDialog() == true)
             {
                 byte[] compressedData = CompressedPPM.ToBinary(compressed);
@@ -94,6 +101,9 @@ namespace PPM_Compression
 
         private async void DecodeFileButton_Click(object sender, RoutedEventArgs e)
         {
+            SelectEncodeFileButton.IsEnabled = false;
+            DecodeFileButton.IsEnabled = false;
+
             var compressed = CompressedPPM.FromBinary(FileBytes);
 
             FileDecodingProgressBar.Minimum = 0;
@@ -121,6 +131,9 @@ namespace PPM_Compression
             dialog.FileName = safeName;
             dialog.Filter = "Все файлы (*.*)|*.*";
 
+            SelectEncodeFileButton.IsEnabled = true;
+            DecodeFileButton.IsEnabled = true;
+
             if (dialog.ShowDialog() == true)
             {
                 File.WriteAllBytes(dialog.FileName, decompressed.ToArray());
@@ -137,6 +150,7 @@ namespace PPM_Compression
             {
                 FileBytes = File.ReadAllBytes(dialog.FileName);
                 EncodedFileNameTextBlock.Text = dialog.FileName;
+                DecodeFileButton.IsEnabled = true;
             }
         }
     }

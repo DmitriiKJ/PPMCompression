@@ -3,8 +3,6 @@ using PPM_Compression.Collections;
 using System.IO;
 using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace PPM_Compression
 {
@@ -31,7 +29,7 @@ namespace PPM_Compression
         {
             var dialog = new OpenFileDialog();
             dialog.Title = "Load file";
-            dialog.Filter = "DPPM file (*.dppm)|*.dppm";
+            dialog.Filter = "PPM file (*.ppm)|*.ppm";
 
             if (dialog.ShowDialog() == true)
             {
@@ -85,8 +83,8 @@ namespace PPM_Compression
 
             var dialog = new SaveFileDialog();
             dialog.Title = "Save file";
-            dialog.Filter = "DPPM file (*.dppm)|*.dppm";
-            dialog.DefaultExt = "dppm";
+            dialog.Filter = "PPM file (*.ppm)|*.ppm";
+            dialog.DefaultExt = "ppm";
             dialog.AddExtension = true;
 
             SelectFileButton.IsEnabled = true;
@@ -144,7 +142,7 @@ namespace PPM_Compression
         {
             var dialog = new OpenFileDialog();
             dialog.Title = "Load file";
-            dialog.Filter = "DPPM file (*.dppm)|*.dppm";
+            dialog.Filter = "PPM file (*.ppm)|*.ppm";
 
             if (dialog.ShowDialog() == true)
             {

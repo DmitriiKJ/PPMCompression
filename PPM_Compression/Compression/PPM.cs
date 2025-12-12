@@ -1,5 +1,4 @@
 ﻿using PPM_Compression.Collections;
-using System.Windows;
 
 namespace PPM_Compression.Compression
 {
